@@ -1,12 +1,13 @@
-# NSL-KDD-ADS
-Unsupervised Anomaly Detection System PyTorch Implementation of NSL-KDD Dataset
+# KDD TorchIDS
+Unsupervised Intrusion Detection System PyTorch Implementation of KDD Dataset (10pct)
+Forked from https://github.com/kabbi159/NSL-KDD-ADS
 
 ## Data Preprocessing
-Download the dataset from https://www.unb.ca/cic/datasets/nsl.html   
-I followed the preprocessing by @kyuyeonpoor's [nsl-kdd-autoencoder](https://github.com/kyuyeonpooh/nsl-kdd-autoencoder). (This setting can be modified)
+Dataset is processed with script from https://github.com/id4thomas/KDD-IDS
 
 ## Autoencoder Based Models
 * AE (Autoencoder)
+* VAE (Variational Autoencoder)
 * DSEBM (Deep Structed Energy Based Model)
 * DAGMM
 * MEMAE (Memory-augmented Deep Autoencoder)
@@ -37,7 +38,3 @@ python main.py \
 --model=memae
 ```
 
-## To-Do
-- [ ] Implement DSEBM
-- [x] set seed implementation
-- [x] hyperparmeter setting by argument
