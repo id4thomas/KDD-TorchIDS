@@ -15,12 +15,15 @@ class MEMAE(nn.Module):
             nn.Linear(self.channel_num_in, 60),
             nn.BatchNorm1d(60),
             nn.Tanh(),
+
             nn.Linear(60, 30),
             nn.BatchNorm1d(30),
             nn.Tanh(),
+
             nn.Linear(30, 10),
             nn.BatchNorm1d(10),
             nn.Tanh(),
+
             nn.Linear(10, 3),
             nn.BatchNorm1d(3),
             nn.Tanh(),
@@ -28,18 +31,21 @@ class MEMAE(nn.Module):
 
         mem_dim = 120
 
-        self.mem_rep = MemModule(mem_dim=mem_dim, fea_dim=3)
+        self.mem_rep = MemModule(mem_dim=mem_dim, fea_dim=3, shrink_thres=1/mem_dim)
 
         self.decoder = nn.Sequential(
             nn.Linear(3, 10),
             nn.BatchNorm1d(10),
             nn.Tanh(),
+
             nn.Linear(10, 30),
             nn.BatchNorm1d(30),
             nn.Tanh(),
+
             nn.Linear(30, 60),
             nn.BatchNorm1d(60),
             nn.Tanh(),
+
             nn.Linear(60, self.channel_num_in),
             nn.BatchNorm1d(self.channel_num_in),
             nn.Tanh(),
@@ -55,12 +61,21 @@ class MEMAE(nn.Module):
 
     def compute_loss(self, outputs, target):
         output = outputs['output']
-        loss = torch.nn.MSELoss()(output, target)
+        w_hat = outputs['att']
+
+        recon_loss = torch.nn.MSELoss()(output, target)
+        mem_etrp = torch.mean((-w_hat) * torch.log(w_hat + 1e-12))
+        loss = recon_loss + 0.0002*mem_etrp
         return loss
 
     def compute_batch_error(self, outputs, target):
         output = outputs['output']
-        loss = torch.nn.MSELoss(reduction='none')(output, target)
+        w_hat = outputs['att']
+
+        recon_loss = torch.nn.MSELoss(reduction='none')(output, target)
+        mem_etrp = torch.mean((-w_hat) * torch.log(w_hat + 1e-12))
+        loss = recon_loss + 0.0002*mem_etrp
+
         batch_error = loss.mean(1)
         return batch_error
 
