@@ -112,7 +112,7 @@ eval_sampler = SequentialSampler(x_test_cuda)
 eval_dataloader = DataLoader(x_test_cuda, sampler=eval_sampler, batch_size=64)
 
 model.eval()
-error =
+error = []
 pred_test=[]
 for batch in eval_dataloader:
     target = batch.type(torch.float32)
