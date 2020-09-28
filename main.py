@@ -61,18 +61,20 @@ print("Split Train: Normal:{}, Atk:{}".format(x_train[y_train==0].shape[0],x_tra
 print("Split Val: Normal:{}, Atk:{}".format(x_val[y_val==0].shape[0],x_val[y_val==1].shape[0]))
 
 #Filter Label
-#Train with only Atk Samples
-x_train,y_train=filter_label(x_train,y_train,select_label=ATK)
+#Train with only train_label Samples
+train_label=ATK
+anom_label=SAFE
+x_train,y_train=filter_label(x_train,y_train,select_label=train_label)
 
 #Load to Cuda
 x_train = torch.from_numpy(x_train).float().to(device)
 val_cuda= torch.from_numpy(x_val).float().to(device)
 
 data_sampler = RandomSampler(x_train)
-data_loader = DataLoader(x_train, sampler=data_sampler, batch_size=64)
+data_loader = DataLoader(x_train, sampler=data_sampler, batch_size=args.batch_size)
 
 model = model_all[args.model].to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 model.zero_grad()
 
@@ -104,7 +106,6 @@ for epoch in range(args.epoch):
 
 model.train(False)
 
-
 # Test
 x_test_cuda = torch.from_numpy(x_test).float().to(device)
 eval_sampler = SequentialSampler(x_test_cuda)
@@ -130,5 +131,5 @@ print(test_recon.shape)
 test_dist=np.mean(np.square(x_test-test_recon),axis=1)
 
 #Distance High -> Anomaly
-print('Average Precision',average_precision_score(y_test, test_dist, pos_label=SAFE))
-make_roc(test_dist,y_test,ans_label=SAFE)
+print('Average Precision',average_precision_score(y_test, test_dist, pos_label=anom_label))
+make_roc(test_dist,y_test,ans_label=anom_label)
