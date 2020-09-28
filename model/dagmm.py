@@ -20,7 +20,7 @@ import numpy as np
 class DAGMM(nn.Module):
     def __init__(self):
         super(DAGMM, self).__init__()
-        self.channel_num_in = 114
+        self.channel_num_in = 120
         self.latent_dim = 3  # 1 + 2
         self.n_gmm = 2
 
@@ -31,12 +31,15 @@ class DAGMM(nn.Module):
             nn.Linear(self.channel_num_in, 60),
             nn.BatchNorm1d(60),
             nn.Tanh(),
+
             nn.Linear(60, 30),
             nn.BatchNorm1d(30),
             nn.Tanh(),
+
             nn.Linear(30, 10),
             nn.BatchNorm1d(10),
             nn.Tanh(),
+
             nn.Linear(10, 1),
             nn.BatchNorm1d(1),
         )
@@ -45,12 +48,15 @@ class DAGMM(nn.Module):
             nn.Linear(1, 10),
             nn.BatchNorm1d(10),
             nn.Tanh(),
+
             nn.Linear(10, 30),
             nn.BatchNorm1d(30),
             nn.Tanh(),
+
             nn.Linear(30, 60),
             nn.BatchNorm1d(60),
             nn.Tanh(),
+
             nn.Linear(60, self.channel_num_in),
             nn.BatchNorm1d(self.channel_num_in),
         )
@@ -60,6 +66,7 @@ class DAGMM(nn.Module):
             # nn.BatchNorm1d(10),
             nn.Tanh(),
             nn.Dropout(0.5),
+            
             nn.Linear(10, self.n_gmm),
             nn.Softmax(dim=0)
         )
