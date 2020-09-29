@@ -22,7 +22,7 @@ class DAGMM(nn.Module):
         super(DAGMM, self).__init__()
         self.channel_num_in = 120
         self.latent_dim = 3  # 1 + 2
-        self.n_gmm = 2
+        self.n_gmm = 4
 
         self.lambda_energy = 0.1
         self.lambda_cov_diag = 0.005
@@ -66,7 +66,7 @@ class DAGMM(nn.Module):
             # nn.BatchNorm1d(10),
             nn.Tanh(),
             nn.Dropout(0.5),
-            
+
             nn.Linear(10, self.n_gmm),
             nn.Softmax(dim=0)
         )
@@ -136,7 +136,8 @@ class DAGMM(nn.Module):
 
         loss = recon_error + self.lambda_energy * energy + self.lambda_cov_diag * cov_diag
 
-        return loss
+        # return loss
+        return {'loss': loss, 'recon': recon_error,'energy': energy, 'cov_diag':cov_diag}
 
     def compute_batch_error(self, outputs, target):
         output = outputs['output']
