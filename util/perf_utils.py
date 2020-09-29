@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 from sklearn import metrics
+from sklearn.metrics import precision_recall_fscore_support,accuracy_score
 
 def get_desc(losses,fpr,tpr,thresholds):
     normalDataLoss=losses[0]
@@ -82,3 +83,9 @@ def make_roc(loss,label,ans_label=1,make_desc=False,make_plot=False):
         desc=None
 
     return auc,fig,desc
+
+#APRF
+def prf(y_true,y_pred):
+    accuracy = accuracy_score(y_true,y_pred)
+    precision, recall, f_score, support = precision_recall_fscore_support(y_true, y_pred, average='binary')
+    print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f}".format(accuracy, precision, recall, f_score))
