@@ -12,6 +12,7 @@ from model.vae import VAE
 
 from util.data_utils import *
 from util.perf_utils import *
+from utils.plot_utils import *
 
 from sklearn.metrics import average_precision_score
 
@@ -64,15 +65,17 @@ TRAIN=ATK
 ANOMALY=SAFE
 x_train,y_train=filter_label(x_train,y_train,select_label=TRAIN)
 
-#Undersampling Validation
-x_val_atk=x_val[y_val==ATK]
-y_val_atk=y_val[y_val==ATK]
+#Under Sampling - Validation 1:1
+under_sample=False
+if under_sample:
+    x_val_atk=x_val[y_val==ATK]
+    y_val_atk=y_val[y_val==ATK]
 
-x_val_safe=x_val[y_val==SAFE]
-y_val_safe=y_val[y_val==SAFE]
-x_val,y_val=under_sampling(x_val_atk,y_val_atk,x_val_safe,y_val_safe)
+    x_val_safe=x_val[y_val==SAFE]
+    y_val_safe=y_val[y_val==SAFE]
+    x_val,y_val=under_sampling(x_val_atk,y_val_atk,x_val_safe,y_val_safe)
 
-print("Sampled Val: Normal:{}, Atk:{}".format(x_val[y_val==0].shape[0],x_val[y_val==1].shape[0]))
+    print("Sampled Val: Normal:{}, Atk:{}".format(x_val[y_val==0].shape[0],x_val[y_val==1].shape[0]))
 
 #Load to Cuda
 x_train = torch.from_numpy(x_train).float().to(device)
@@ -89,11 +92,25 @@ model.zero_grad()
 
 model.train(True)
 
+# Train History
+train_hist={
+    'loss':[],
+    'recon':[],
+    'energy':[]
+}
+val_hist={
+    'loss':[],
+    'recon':[],
+    'energy':[]
+}
+
 # Train
 for epoch in range(args.epoch):
     epoch_loss = []
     epoch_recon=[]
     epoch_energy=[]
+    epoch_cov_diag=[]
+
     print("\nTraining Epoch",epoch+1)
     for step, batch in enumerate(data_loader):
         target = batch.type(torch.float32)
@@ -101,16 +118,18 @@ for epoch in range(args.epoch):
         outputs = model(target)
         losses = model.compute_loss(outputs, target)
         loss=losses['loss']
-        train_recon=losses['recon']
-        sample_energy=losses['energy']
+        batch_recon=losses['recon']
+        batch_energy=losses['energy']
+        batch_cov_diag=losses['cov_diag']
 
         loss.backward()
         optimizer.step()
         model.zero_grad()
 
         epoch_loss.append(loss.item())
-        epoch_recon.append(train_recon)
-        epoch_energy.append(sample_energy)
+        epoch_recon.append(batch_recon)
+        epoch_energy.append(batch_energy)
+        epoch_cov_diag.append(batch_cov_diag)
 
     #Validation loss
     model.eval()
@@ -118,24 +137,41 @@ for epoch in range(args.epoch):
         outputs = model(val_cuda)
         val_losses = model.compute_loss(outputs, val_cuda)
         val_loss=val_losses['loss']
-        #Calculate Energy
+        #Recon Loss
+        val_recon = outputs['output'].cpu().detach().numpy()
+        val_dist_l2=np.mean(np.square(x_val-val_recon),axis=1)
+
         val_energy,_=model.compute_energy(outputs['z'], outputs['phi'], outputs['mu'], outputs['cov'],size_average=False)
-        val_dist=val_energy.cpu().detach().numpy()
+        val_energy=val_energy.cpu().detach().numpy()
+
+    train_hist['loss'].append(sum(epoch_loss)/len(epoch_loss))
+    val_hist['loss'].append(val_loss.item())
+
+    train_hist['energy'].append(sum(epoch_energy)/len(epoch_energy))
+    val_hist['energy'].append(val_losses['energy'].item())
+
+    train_hist['recon'].append(sum(epoch_recon)/len(epoch_recon))
+    val_hist['recon'].append(val_losses['recon'].item())
 
     print("\tepoch {}: Train: {:.5f}, Val: {:.5f}".format(epoch+1, sum(epoch_loss)/len(epoch_loss),val_loss))
-    print("\tSample Energy: {:.5f}".format(sum(epoch_energy)/len(epoch_energy)))
+    print("\tTrain Sample Energy: {:.5f}".format(sum(epoch_energy)/len(epoch_energy)))
     print("\tTrain Recon: {:.5f}".format(sum(epoch_recon)/len(epoch_recon)))
+    print("\tTrain Cov Diag: {:.5f}".format(sum(epoch_cov_diag)/len(epoch_cov_diag)))
 
-    #Validation Perf
-    print('\nVAL Average Precision',average_precision_score(y_val, val_dist, pos_label=ANOMALY))
+    print("\nNormal L2")
+    print('Val Average Precision',average_precision_score(y_val, val_dist_l2, pos_label=ANOMALY))
+    #ROC
+    make_roc(val_dist_l2,y_val,ans_label=ANOMALY)
 
-    #Energy Highest 20% -> Anomaly
-    thresh = np.percentile(val_dist, 100 - 20)
-    print("Threshold :", thresh)
+    #prf - 20% Highest Energy
+    #Get Threshold
+    thresh_20 = np.percentile(val_energy, 100 - 20)
+    print("Energy Threshold 20: {:.5f}".format(thresh_20))
     y_pred=np.zeros_like(y_val)
-    y_pred[val_dist>thresh]=ANOMALY
-    y_pred[val_dist<=thresh]=TRAIN
-    prf(y_val,y_pred)
+    y_pred[val_energy>thresh_20]=ANOMALY
+    y_pred[val_energy<=thresh_20]=TRAIN
+    print("Thresh 20:")
+    prf(y_val,y_pred,ans_label=ANOMALY)
 
 model.train(False)
 
